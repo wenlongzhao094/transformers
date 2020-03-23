@@ -24,7 +24,7 @@ from collections import UserDict, defaultdict
 from contextlib import contextmanager
 from typing import List, Optional, Sequence, Tuple, Union
 
-from tokenizers import Encoding
+from tokenizers import Encoding, Decoder
 from tokenizers.implementations import BaseTokenizer
 
 from .file_utils import cached_path, hf_bucket_url, is_remote_url, is_tf_available, is_torch_available
@@ -1699,18 +1699,18 @@ class PreTrainedTokenizerFast(PreTrainedTokenizer):
         )  # take into account special tokens
 
     @property
-    def tokenizer(self):
+    def tokenizer(self) -> BaseTokenizer:
         return self._tokenizer
 
     @property
-    def decoder(self):
+    def decoder(self) -> Decoder:
         return self._tokenizer._tokenizer.decoder
 
     @property
-    def vocab_size(self):
+    def vocab_size(self) -> int:
         return self._tokenizer.get_vocab_size(with_added_tokens=False)
 
-    def __len__(self):
+    def __len__(self) -> int:
         return self._tokenizer.get_vocab_size(with_added_tokens=True)
 
     @PreTrainedTokenizer.bos_token.setter
@@ -1754,7 +1754,7 @@ class PreTrainedTokenizerFast(PreTrainedTokenizer):
         self._update_special_tokens()
 
     @property
-    def is_fast(self):
+    def is_fast(self) -> bool:
         return True
 
     def _update_special_tokens(self):
@@ -1820,48 +1820,50 @@ class PreTrainedTokenizerFast(PreTrainedTokenizer):
             return self.unk_token_id
         return id
 
-    def _convert_id_to_token(self, index):
+    def _convert_id_to_token(self, index: int):
         return self._tokenizer.id_to_token(int(index))
 
-    def convert_tokens_to_string(self, tokens):
-        return self._tokenizer.decode(tokens)
+    def convert_tokens_to_string(self, tokens: List[int], skip_special_tokens: bool = False) -> str:
+        return self._tokenizer.decode(tokens, skip_special_tokens)
 
-    def add_tokens(self, new_tokens):
+    def add_tokens(self, new_tokens: List[Union[str, Tuple[str, bool]]]) -> int:
         if isinstance(new_tokens, str):
             new_tokens = [new_tokens]
         return self._tokenizer.add_tokens(new_tokens)
 
-    def add_special_tokens(self, special_tokens_dict):
+    def add_special_tokens(self, special_tokens_dict: dict) -> int:
         added = super().add_special_tokens(special_tokens_dict)
         self._update_special_tokens()
         return added
 
-    def build_inputs_with_special_tokens(self, token_ids_0, token_ids_1=None):
+    def build_inputs_with_special_tokens(
+        self, token_ids_0: List[int], token_ids_1: Optional[List[int]] = None
+    ) -> List[int]:
         if token_ids_1 is None:
             return token_ids_0
         else:
             return token_ids_0 + token_ids_1
 
-    def num_special_tokens_to_add(self, pair=False):
+    def num_special_tokens_to_add(self, pair: bool = False) -> int:
         return self.tokenizer.num_special_tokens_to_add(pair)
 
-    def tokenize(self, text, pair: Optional[str] = None, add_special_tokens: bool = True):
+    def tokenize(self, text: str, pair: Optional[str] = None, add_special_tokens: bool = True) -> List[str]:
         return self.tokenizer.encode(text, pair, add_special_tokens).tokens
 
     def batch_encode_plus(
         self,
-        batch_text_or_text_pairs=None,
-        add_special_tokens=True,
-        max_length=None,
-        stride=0,
-        truncation_strategy="longest_first",
-        pad_to_max_length=False,
-        return_tensors=None,
-        return_token_type_ids=True,
-        return_attention_mask=True,
-        return_overflowing_tokens=False,
-        return_special_tokens_mask=False,
-        return_offsets_mapping=False,
+        batch_text_or_text_pairs: Union[List[str], List[(str, str)]] = None,
+        add_special_tokens: bool = True,
+        max_length: Optional[int] = None,
+        stride: int = 0,
+        truncation_strategy: str = "longest_first",
+        pad_to_max_length: bool = False,
+        return_tensors: Optional[str] = None,
+        return_token_type_ids: bool = True,
+        return_attention_mask: bool = True,
+        return_overflowing_tokens: bool = False,
+        return_special_tokens_mask: bool = False,
+        return_offsets_mapping: bool = False,
         **kwargs
     ) -> BatchEncoding:
 
@@ -1950,19 +1952,19 @@ class PreTrainedTokenizerFast(PreTrainedTokenizer):
 
     def encode_plus(
         self,
-        text,
-        text_pair=None,
-        add_special_tokens=True,
-        max_length=None,
-        pad_to_max_length=False,
-        stride=0,
-        truncation_strategy="longest_first",
-        return_tensors=None,
-        return_token_type_ids=True,
-        return_attention_mask=True,
-        return_overflowing_tokens=False,
-        return_special_tokens_mask=False,
-        return_offsets_mapping=False,
+        text: Union[str, List[str]],
+        text_pair: Optional[str] = None,
+        add_special_tokens: bool = True,
+        max_length: Optional[int] = None,
+        pad_to_max_length: bool = False,
+        stride: int = 0,
+        truncation_strategy: str = "longest_first",
+        return_tensors: Optional[str] = None,
+        return_token_type_ids: bool = True,
+        return_attention_mask: bool = True,
+        return_overflowing_tokens: bool = False,
+        return_special_tokens_mask: bool = False,
+        return_offsets_mapping: bool = False,
         **kwargs
     ) -> BatchEncoding:
         batched_input = [(text, text_pair)] if text_pair else [text]
@@ -1994,7 +1996,9 @@ class PreTrainedTokenizerFast(PreTrainedTokenizer):
         else:
             return batched_output
 
-    def decode(self, token_ids, skip_special_tokens=False, clean_up_tokenization_spaces=True):
+    def decode(
+        self, token_ids: List[int], skip_special_tokens: bool = False, clean_up_tokenization_spaces: bool = True
+    ):
         text = self.tokenizer.decode(token_ids, skip_special_tokens)
 
         if clean_up_tokenization_spaces:
@@ -2003,7 +2007,7 @@ class PreTrainedTokenizerFast(PreTrainedTokenizer):
         else:
             return text
 
-    def save_vocabulary(self, save_directory):
+    def save_vocabulary(self, save_directory: str) -> Tuple[str]:
         if os.path.isdir(save_directory):
             files = self._tokenizer.save(save_directory)
         else:
