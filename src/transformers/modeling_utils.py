@@ -912,7 +912,6 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin):
             )  # shape: (batch_size * num_return_sequences * num_beams, cur_len)
 
         if self.config.is_encoder_decoder:
-            assert bos_token_id is not None, "Encoder Decoder Models need to have a bos_token_id"
             assert hasattr(self, "get_encoder"), "{} should have a 'get_encoder' function defined".format(self)
             assert callable(self.get_encoder), "{} should be a method".format(self.get_encoder)
 
