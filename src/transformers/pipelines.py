@@ -335,7 +335,7 @@ class Pipeline(_ScikitCompat):
         tokenizer: PreTrainedTokenizer,
         modelcard: Optional[ModelCard] = None,
         framework: Optional[str] = None,
-        task_id: str = '',
+        task_id: str = "",
         args_parser: ArgumentHandler = None,
         device: int = -1,
         binary_output: bool = False,
@@ -1162,12 +1162,7 @@ class SummarizationPipeline(Pipeline):
     """
 
     def __call__(
-        self,
-        *documents,
-        return_tensors=False,
-        return_text=True,
-        clean_up_tokenization_spaces=False,
-        **generate_kwargs
+        self, *documents, return_tensors=False, return_text=True, clean_up_tokenization_spaces=False, **generate_kwargs
     ):
         r"""
         Args:
@@ -1222,7 +1217,11 @@ class SummarizationPipeline(Pipeline):
             documents = (self.model.config.prefix + documents[0],)
             pad_to_max_length = False
         else:
-            raise ValueError(" `documents[0]`: {} have the wrong format. The should be either of type `str` or type `list`".format(documents[0]))
+            raise ValueError(
+                " `documents[0]`: {} have the wrong format. The should be either of type `str` or type `list`".format(
+                    documents[0]
+                )
+            )
 
         with self.device_placement():
             inputs = self._parse_and_tokenize(*documents, pad_to_max_length=pad_to_max_length)
@@ -1248,9 +1247,7 @@ class SummarizationPipeline(Pipeline):
                 )
 
             summaries = self.model.generate(
-                inputs["input_ids"],
-                attention_mask=inputs["attention_mask"],
-                **generate_kwargs,
+                inputs["input_ids"], attention_mask=inputs["attention_mask"], **generate_kwargs,
             )
 
             results = []
