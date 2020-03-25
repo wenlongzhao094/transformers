@@ -2,6 +2,7 @@ import argparse
 from pathlib import Path
 
 from tqdm import tqdm
+from sacrebleu import corpus_bleu
 
 from transformers import T5_PREFIX_PATTERNS, T5ForConditionalGeneration, T5Tokenizer
 
@@ -12,7 +13,7 @@ def chunks(lst, n):
         yield lst[i : i + n]
 
 
-def generate_summaries(lns, out_file, batch_size):
+def generate_translations(lns, out_file, batch_size):
     fout = Path(out_file).open("w")
 
     model = T5ForConditionalGeneration.from_pretrained("t5-base")
@@ -42,6 +43,13 @@ def generate_summaries(lns, out_file, batch_size):
             fout.flush()
 
 
+def calculate_bleu_score(output_lns, refs_lns, score_path):
+    bleu = corpus_bleu(output_lns, refs_lns)
+    result = "BLEU score: {}".format(bleu.score)
+    score_file = Path(score_path).open("w")
+    score_file.write(result)
+
+
 def _run_generate():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -51,11 +59,21 @@ def _run_generate():
         "output_path", type=str, help="where to save translation",
     )
     parser.add_argument(
+        "reference_path", type=str, help="like wmt/newstest2013.de",
+    )
+    parser.add_argument(
+        "score_path", type=str, help="where to save the bleu score",
+    )
+    parser.add_argument(
         "--bs", type=int, default=16, required=False, help="batch size: how many to summarize at a time",
     )
     args = parser.parse_args()
-    lns = [" " + x.rstrip() for x in open(args.source_path).readlines()]
-    generate_summaries(lns, args.output_path, args.bs)
+    input_lns = [x.rstrip() for x in open(args.source_path).readlines()]
+    generate_translations(input_lns, args.output_path, args.bs)
+
+    output_lns = [x.strip() for x in open(args.output_path).readlines()]
+    refs_lns = [x.strip() for x in open(args.reference_path).readlines()]
+    calculate_bleu_score(output_lns, refs_lns, args.score_path)
 
 
 if __name__ == "__main__":
