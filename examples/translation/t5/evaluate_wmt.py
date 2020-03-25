@@ -1,8 +1,8 @@
 import argparse
 from pathlib import Path
 
-from tqdm import tqdm
 from sacrebleu import corpus_bleu
+from tqdm import tqdm
 
 from transformers import T5_PREFIX_PATTERNS, T5ForConditionalGeneration, T5Tokenizer
 
@@ -27,7 +27,8 @@ def generate_translations(lns, out_file, batch_size):
         batch = [T5_PREFIX_PATTERNS["translation"].format(from_lng, to_lng) + text for text in batch]
 
         dct = tokenizer.batch_encode_plus(batch, max_length=512, return_tensors="pt", pad_to_max_length=True)
-        summaries = model.generate(
+
+        translations = model.generate(
             input_ids=dct["input_ids"],
             attention_mask=dct["attention_mask"],
             num_beams=4,
@@ -36,7 +37,7 @@ def generate_translations(lns, out_file, batch_size):
             early_stopping=True,
             bos_token_id=tokenizer.pad_token_id,
         )
-        dec = [tokenizer.decode(g, skip_special_tokens=True, clean_up_tokenization_spaces=False) for g in summaries]
+        dec = [tokenizer.decode(g, skip_special_tokens=True, clean_up_tokenization_spaces=False) for g in translations]
 
         for hypothesis in dec:
             fout.write(hypothesis + "\n")
@@ -44,7 +45,7 @@ def generate_translations(lns, out_file, batch_size):
 
 
 def calculate_bleu_score(output_lns, refs_lns, score_path):
-    bleu = corpus_bleu(output_lns, refs_lns)
+    bleu = corpus_bleu(output_lns, [refs_lns])
     result = "BLEU score: {}".format(bleu.score)
     score_file = Path(score_path).open("w")
     score_file.write(result)
@@ -68,11 +69,15 @@ def _run_generate():
         "--bs", type=int, default=16, required=False, help="batch size: how many to summarize at a time",
     )
     args = parser.parse_args()
-    input_lns = [x.rstrip() for x in open(args.source_path).readlines()]
+    dash_pattern = (" ##AT##-##AT## ", "-")
+
+    input_lns = [x.strip().replace(dash_pattern[0], dash_pattern[1]) for x in open(args.source_path).readlines()]
+
     generate_translations(input_lns, args.output_path, args.bs)
 
     output_lns = [x.strip() for x in open(args.output_path).readlines()]
-    refs_lns = [x.strip() for x in open(args.reference_path).readlines()]
+    refs_lns = [x.strip().replace(dash_pattern[0], dash_pattern[1]) for x in open(args.reference_path).readlines()]
+
     calculate_bleu_score(output_lns, refs_lns, args.score_path)
 
 
