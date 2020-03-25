@@ -3,7 +3,7 @@ from pathlib import Path
 
 from tqdm import tqdm
 
-from transformers import T5Tokenizer, T5ForConditionalGeneration, T5_PREFIX_PATTERNS
+from transformers import T5_PREFIX_PATTERNS, T5ForConditionalGeneration, T5Tokenizer
 
 
 def chunks(lst, n):
@@ -19,11 +19,11 @@ def generate_summaries(lns, out_file, batch_size):
     tokenizer = T5Tokenizer.from_pretrained("t5-base")
 
     max_length = 300
-    from_lng = 'English'
-    to_lng = 'German'
+    from_lng = "English"
+    to_lng = "German"
 
     for batch in tqdm(list(chunks(lns, batch_size))):
-        batch = [T5_PREFIX_PATTERNS['translation'].format(from_lng, to_lng) + text for text in batch]
+        batch = [T5_PREFIX_PATTERNS["translation"].format(from_lng, to_lng) + text for text in batch]
 
         dct = tokenizer.batch_encode_plus(batch, max_length=512, return_tensors="pt", pad_to_max_length=True)
         summaries = model.generate(
