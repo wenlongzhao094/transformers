@@ -13,7 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-""" Finetuning the library models for sequence classification on GLUE (Bert, XLM, XLNet, RoBERTa, Albert, XLM-RoBERTa)."""
+""" Finetuning the library models for sequence classification on GLUE (bert_cc, albert_cc)."""
 
 
 import argparse
@@ -65,6 +65,11 @@ def set_seed(args):
     if args.n_gpu > 0:
         torch.cuda.manual_seed_all(args.seed)
 
+# def rchop(string, substring):
+#     if string.endswith(substring):
+#         return string[:-len(substring)]
+#     else:
+#         return string
 
 def train(args, train_dataset, model, tokenizer):
     """ Train the model """
@@ -428,6 +433,29 @@ def main():
 
     # Other parameters
     parser.add_argument(
+        "--compositional_code_embedding_path",
+        default=None,
+        type=str,
+        required=False,
+        help="Path to trained compositional code embeddings",
+    )
+    parser.add_argument(
+        "--codebook_num",
+        default=None,
+        type=int,
+        required=False,
+        help="Number of codebooks for compositional code embeddings",
+    )
+    parser.add_argument(
+        "--codebook_size",
+        default=None,
+        type=int,
+        required=False,
+        help="Size of each codebook compositional code embeddings",
+    )
+    parser.add_argument("--train_codebook", action="store_true", help="Train codebook basis vectors.")
+    parser.add_argument("--not_train_transformer", action="store_true", help="Don't train transformer params.")
+    parser.add_argument(
         "--config_name", default="", type=str, help="Pretrained config name or path if not the same as model_name",
     )
     parser.add_argument(
@@ -588,6 +616,14 @@ def main():
         finetuning_task=args.task_name,
         cache_dir=args.cache_dir if args.cache_dir else None,
     )
+    # Add codebook hyperparameters to config
+    if args.compositional_code_embedding_path:
+        if args.codebook_num and args.codebook_size:
+            config.cc = True
+            config.codebook_num = args.codebook_num
+            config.codebook_size = args.codebook_size
+        else:
+            raise ValueError("Embedding codebook number or size not specified.")
     tokenizer = AutoTokenizer.from_pretrained(
         args.tokenizer_name if args.tokenizer_name else args.model_name_or_path,
         do_lower_case=args.do_lower_case,
@@ -599,6 +635,29 @@ def main():
         config=config,
         cache_dir=args.cache_dir if args.cache_dir else None,
     )
+    if args.not_train_transformer:
+        for param in model.parameters():
+            param.requires_grad = False
+    if config.cc:
+        word_codes = np.loadtxt(os.path.join(args.compositional_code_embedding_path, 'mymodel.codes'))
+        word_codes = torch.Tensor(word_codes)
+        codebook = np.load(os.path.join(args.compositional_code_embedding_path, 'mymodel.codebook.npy'))
+        codebook = codebook.reshape(config.codebook_num, config.codebook_size, config.hidden_size)
+        codebook = torch.from_numpy(codebook.transpose((0, 2, 1)))
+        model.set_input_embeddings(word_codes, codebook, args.train_codebook)
+
+    # print all parameters
+    # for name, param in model.named_parameters():
+    #     print(name)
+
+    # print all trainable parameters
+    # for name, param in model.named_parameters():
+    #     if param.requires_grad:
+    #         print(name)
+
+    # print all parameters with shapes
+    # for param_tensor in model.state_dict():
+    #     print(param_tensor, "\t", model.state_dict()[param_tensor].size())
 
     if args.local_rank == 0:
         torch.distributed.barrier()  # Make sure only the first process in distributed training will download model & vocab
@@ -632,9 +691,9 @@ def main():
         torch.save(args, os.path.join(args.output_dir, "training_args.bin"))
 
         # Load a trained model and vocabulary that you have fine-tuned
-        model = AutoModelForSequenceClassification.from_pretrained(args.output_dir)
-        tokenizer = AutoTokenizer.from_pretrained(args.output_dir)
-        model.to(args.device)
+        # model = model_class.from_pretrained(args.output_dir)
+        # tokenizer = AutoTokenizer.from_pretrained(args.output_dir)
+        # model.to(args.device)
 
     # Evaluation
     results = {}
@@ -651,7 +710,15 @@ def main():
             global_step = checkpoint.split("-")[-1] if len(checkpoints) > 1 else ""
             prefix = checkpoint.split("/")[-1] if checkpoint.find("checkpoint") != -1 else ""
 
-            model = AutoModelForSequenceClassification.from_pretrained(checkpoint)
+            model = AutoModelForSequenceClassification.from_pretrained(checkpoint, config=config)
+            if config.cc:
+                word_codes = np.loadtxt(os.path.join(args.compositional_code_embedding_path, 'mymodel.codes'))
+                word_codes = torch.Tensor(word_codes)
+                codebook = np.load(os.path.join(args.compositional_code_embedding_path, 'mymodel.codebook.npy'))
+                codebook = codebook.reshape(config.codebook_num, config.codebook_size, config.hidden_size)
+                codebook = torch.from_numpy(codebook.transpose((0, 2, 1)))
+                model.set_input_embeddings(word_codes, codebook, args.train_codebook)
+
             model.to(args.device)
             result = evaluate(args, model, tokenizer, prefix=prefix)
             result = dict((k + "_{}".format(global_step), v) for k, v in result.items())

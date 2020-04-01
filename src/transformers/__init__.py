@@ -163,6 +163,8 @@ if is_torch_available():
         MODEL_WITH_LM_HEAD_MAPPING,
         MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING,
         CC_MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING,
+        MODEL_FOR_SEQUENCE_AND_TOKEN_CLASSIFICATION_MAPPING,
+        CC_MODEL_FOR_SEQUENCE_AND_TOKEN_CLASSIFICATION_MAPPING,
         MODEL_FOR_QUESTION_ANSWERING_MAPPING,
         MODEL_FOR_TOKEN_CLASSIFICATION_MAPPING,
     )
@@ -182,7 +184,6 @@ if is_torch_available():
         BERT_PRETRAINED_MODEL_ARCHIVE_MAP,
     )
     from .modeling_bert_cc import (
-        BertCcPreTrainedModel,
         BertCcModel,
         BertCcForNextSentencePrediction,
         BertCcForSequenceClassification,
@@ -290,7 +291,6 @@ if is_torch_available():
         ALBERT_PRETRAINED_MODEL_ARCHIVE_MAP,
     )
     from .modeling_albert_cc import (
-        AlbertCcPreTrainedModel,
         AlbertCcModel,
         AlbertCcForSequenceClassification,
         AlbertCcForQuestionAnswering,
