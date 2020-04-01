@@ -162,6 +162,7 @@ if is_torch_available():
         MODEL_FOR_PRETRAINING_MAPPING,
         MODEL_WITH_LM_HEAD_MAPPING,
         MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING,
+        CC_MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING,
         MODEL_FOR_QUESTION_ANSWERING_MAPPING,
         MODEL_FOR_TOKEN_CLASSIFICATION_MAPPING,
     )
@@ -175,9 +176,20 @@ if is_torch_available():
         BertForSequenceClassification,
         BertForMultipleChoice,
         BertForTokenClassification,
+        BertForSequenceAndTokenClassification,
         BertForQuestionAnswering,
         load_tf_weights_in_bert,
         BERT_PRETRAINED_MODEL_ARCHIVE_MAP,
+    )
+    from .modeling_bert_cc import (
+        BertCcPreTrainedModel,
+        BertCcModel,
+        BertCcForNextSentencePrediction,
+        BertCcForSequenceClassification,
+        BertCcForMultipleChoice,
+        BertCcForTokenClassification,
+        BertCcForSequenceAndTokenClassification,
+        BertCcForQuestionAnswering,
     )
     from .modeling_openai import (
         OpenAIGPTPreTrainedModel,
@@ -273,8 +285,17 @@ if is_torch_available():
         AlbertForSequenceClassification,
         AlbertForQuestionAnswering,
         AlbertForTokenClassification,
+        AlbertForSequenceAndTokenClassification,
         load_tf_weights_in_albert,
         ALBERT_PRETRAINED_MODEL_ARCHIVE_MAP,
+    )
+    from .modeling_albert_cc import (
+        AlbertCcPreTrainedModel,
+        AlbertCcModel,
+        AlbertCcForSequenceClassification,
+        AlbertCcForQuestionAnswering,
+        AlbertCcForTokenClassification,
+        AlbertCcForSequenceAndTokenClassification,
     )
     from .modeling_xlm_roberta import (
         XLMRobertaForMaskedLM,
