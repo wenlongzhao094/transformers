@@ -1,21 +1,21 @@
 #!/bin/bash
 #
-#SBATCH --job-name=sst_2_bert_cc
+#SBATCH --job-name=semparse_bert_cc
 #SBATCH --partition=m40-long
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks-per-node=4
 
-GLUE_DIR=../glue_data
-TASK_NAME=SST-2
+DATA_DIR=/mnt/nfs/scratch1/prafullpraka/696DS/snips/train
+TASK_NAME=snips
 MODEL_TYPE=bert
-MODEL_PATH=/mnt/nfs/scratch1/prafullpraka/696DS/BERT/GLUE_benchmark/Ckpt_results_BERT_cased/SST-2
+MODEL_PATH=/mnt/nfs/scratch1/xxx
 SETTING=bert-base-cased
-CCEMD_PATH=/mnt/nfs/scratch1/ssaurabhkuma/2020/696DS/BERT/GLUE_benchmark/Ckpt_results_BERT_cased/src/neuralcompressor/models/M32_K16/SST-2
+CCEMD_PATH=/mnt/nfs/scratch1/xxx
 CODEBOOK_NUM=32
 CODEBOOK_SIZE=16
-OUTPUT_DIR=/mnt/nfs/scratch1/wenlongzhao/Result_Efficiency/xxx
+OUTPUT_DIR=/mnt/nfs/scratch1/xxx
 
-python ../run_glue_cc.py \
+python ../run_semparse_cc.py \
   --model_type $MODEL_TYPE \
   --model_name_or_path $MODEL_PATH \
   --compositional_code_embedding_path $CCEMD_PATH \
@@ -30,11 +30,14 @@ python ../run_glue_cc.py \
   --not_train_transformer \
   --do_eval \
   --eval_all_checkpoints \
-  --data_dir $GLUE_DIR/$TASK_NAME \
+  --data_dir $DATA_DIR \
   --max_seq_length 128 \
-  --per_gpu_train_batch_size 32 \
-  --per_gpu_eval_batch_size 8\
+  --per_gpu_train_batch_size 128 \
+  --per_gpu_eval_batch_size 128\
   --gradient_accumulation_steps 1\
-  --learning_rate 2e-5 \
-  --num_train_epochs 5.0 \
+  --logging_steps 1000 \
+  --learning_rate 5e-5 \
+  --warmup_portion 0.1 \
+  --weight_decay 0.01 \
+  --num_train_epochs 10.0 \
   --output_dir $OUTPUT_DIR/$TASK_NAME

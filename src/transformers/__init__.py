@@ -157,6 +157,7 @@ if is_torch_available():
         AutoModelForQuestionAnswering,
         AutoModelWithLMHead,
         AutoModelForTokenClassification,
+        AutoModelForSequenceAndTokenClassification,
         ALL_PRETRAINED_MODEL_ARCHIVE_MAP,
         MODEL_MAPPING,
         MODEL_FOR_PRETRAINING_MAPPING,
