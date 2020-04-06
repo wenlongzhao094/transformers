@@ -58,7 +58,7 @@ class AlbertCcModel(AlbertPreTrainedModel):
         return self.embeddings.word_codes, self.embeddings.codebook
 
     def set_input_embeddings(self, word_codes, codebook, train_codebook):
-        self.embeddings.word_codes = nn.Embedding.from_pretrained(word_codes, freeze=True, padding_idx=0)
+        self.embeddings.word_codes = nn.Embedding.from_pretrained(word_codes, freeze=True)
         self.embeddings.codebook = nn.Parameter(codebook, requires_grad=train_codebook)
 
     def _resize_token_embeddings(self, new_num_tokens):
@@ -199,7 +199,7 @@ class AlbertCcForSequenceClassification(AlbertPreTrainedModel):
         self.init_weights()
 
     def set_input_embeddings(self, word_codes, codebook, train_codebook):
-        self.albert.embeddings.word_codes = nn.Embedding.from_pretrained(word_codes, freeze=True, padding_idx=0)
+        self.albert.embeddings.word_codes = nn.Embedding.from_pretrained(word_codes, freeze=True)
         self.albert.embeddings.codebook = nn.Parameter(codebook, requires_grad=train_codebook)
 
     @add_start_docstrings_to_callable(ALBERT_INPUTS_DOCSTRING)
@@ -300,7 +300,7 @@ class AlbertCcForSequenceAndTokenClassification(AlbertPreTrainedModel):
         self.init_weights()
 
     def set_input_embeddings(self, word_codes, codebook, train_codebook):
-        self.albert.embeddings.word_codes = nn.Embedding.from_pretrained(word_codes, freeze=True, padding_idx=0)
+        self.albert.embeddings.word_codes = nn.Embedding.from_pretrained(word_codes, freeze=True)
         self.albert.embeddings.codebook = nn.Parameter(codebook, requires_grad=train_codebook)
 
     @add_start_docstrings_to_callable(ALBERT_INPUTS_DOCSTRING)
@@ -412,7 +412,7 @@ class AlbertCcForTokenClassification(AlbertPreTrainedModel):
         self.init_weights()
 
     def set_input_embeddings(self, word_codes, codebook, train_codebook):
-        self.albert.embeddings.word_codes = nn.Embedding.from_pretrained(word_codes, freeze=True, padding_idx=0)
+        self.albert.embeddings.word_codes = nn.Embedding.from_pretrained(word_codes, freeze=True)
         self.albert.embeddings.codebook = nn.Parameter(codebook, requires_grad=train_codebook)
 
     @add_start_docstrings_to_callable(ALBERT_INPUTS_DOCSTRING)
@@ -512,7 +512,7 @@ class AlbertCcForQuestionAnswering(AlbertPreTrainedModel):
         self.init_weights()
 
     def set_input_embeddings(self, word_codes, codebook, train_codebook):
-        self.albert.embeddings.word_codes = nn.Embedding.from_pretrained(word_codes, freeze=True, padding_idx=0)
+        self.albert.embeddings.word_codes = nn.Embedding.from_pretrained(word_codes, freeze=True)
         self.albert.embeddings.codebook = nn.Parameter(codebook, requires_grad=train_codebook)
 
     @add_start_docstrings_to_callable(ALBERT_INPUTS_DOCSTRING)

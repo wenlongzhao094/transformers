@@ -24,6 +24,7 @@ python ../run_glue_cc.py \
   --task_name $TASK_NAME \
   --config_name $SETTING\
   --tokenizer_name $SETTING\
+  --do_lower_case \
   --do_train \
   --train_codebook \
   --not_train_transformer \

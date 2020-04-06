@@ -73,12 +73,9 @@ class InputExample:
     A single training/test example for simple sequence classification.
     Args:
         guid: Unique id for the example.
-        text_a: string. The untokenized text of the first sequence. For single
-            sequence tasks, only this sequence must be specified.
-        text_b: (Optional) string. The untokenized text of the second sequence.
-            Only must be specified for sequence pair tasks.
-        label: (Optional) string. The label of the example. This should be
-            specified for train and dev examples, but not for test examples.
+        text_a: The untokenized text of the query.
+        label_s: slot labels.
+        label_i: intent labels.
     """
 
     guid: str
@@ -117,13 +114,6 @@ class DataProcessor(object):
     def get_intent_labels(self):
         """Gets the list of labels for this data set."""
         raise NotImplementedError()
-
-    def tfds_map(self, example):
-        """Some tensorflow_datasets datasets are not formatted the same way the GLUE datasets are.
-        This method converts examples to the correct format."""
-        if len(self.get_labels()) > 1:
-            example.label = self.get_labels()[int(example.label)]
-        return example
 
 
 class AtisProcessor(DataProcessor):
@@ -392,11 +382,11 @@ def semparse_convert_examples_to_features(
         assert len(segment_ids) == max_seq_length
         assert len(label_slot_ids) == max_seq_length
 
-        label_intent_ids = label_intent_map[example.label_i]
+        label_intent_id = label_intent_map[example.label_i]
 
         features.append(
             InputFeatures(input_ids=input_ids, attention_mask=input_mask, \
-                          token_type_ids=segment_ids, label_slots=label_slot_ids, label_intents=label_intent_ids)
+                          token_type_ids=segment_ids, label_slots=label_slot_ids, label_intents=label_intent_id)
         )
 
     return features
@@ -584,8 +574,9 @@ def main():
     # Set seed
     set_seed(args)
 
-    # Prepare GLUE task
+    # Prepare task
     args.task_name = args.task_name.lower()
+    processors = {"atis": AtisProcessor, "snips": SnipsProcessor}
     if args.task_name not in processors:
         raise ValueError("Task not found: %s" % (args.task_name))
     processor = processors[args.task_name]()
@@ -604,7 +595,6 @@ def main():
         finetuning_task=args.task_name,
         cache_dir=args.cache_dir if args.cache_dir else None,
     )
-    config.cc = False
     tokenizer = AutoTokenizer.from_pretrained(
         args.tokenizer_name if args.tokenizer_name else args.model_name_or_path,
         do_lower_case=args.do_lower_case,
@@ -616,7 +606,7 @@ def main():
         config=config,
         cache_dir=args.cache_dir if args.cache_dir else None,
     )
-    model.bert.embeddings.word_embeddings.requires_grad = False
+
 
     if args.local_rank == 0:
         torch.distributed.barrier()  # Make sure only the first process in distributed training will download model & vocab
