@@ -15,7 +15,6 @@ python ../run_glue.py \
   --model_type $MODEL_TYPE \
   --model_name_or_path $MODEL_PATH \
   --task_name $TASK_NAME \
-  --do_lower_case \
   --do_train \
   --do_eval \
   --eval_all_checkpoints \

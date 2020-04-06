@@ -65,11 +65,6 @@ def set_seed(args):
     if args.n_gpu > 0:
         torch.cuda.manual_seed_all(args.seed)
 
-# def rchop(string, substring):
-#     if string.endswith(substring):
-#         return string[:-len(substring)]
-#     else:
-#         return string
 
 def train(args, train_dataset, model, tokenizer):
     """ Train the model """
@@ -714,7 +709,6 @@ def main():
             prefix = checkpoint.split("/")[-1] if checkpoint.find("checkpoint") != -1 else ""
 
             model = AutoModelForSequenceClassification.from_pretrained(checkpoint, config=config)
-
             model.to(args.device)
             result = evaluate(args, model, tokenizer, prefix=prefix)
             result = dict((k + "_{}".format(global_step), v) for k, v in result.items())

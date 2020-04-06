@@ -5,7 +5,7 @@
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks-per-node=4
 
-DATA_DIR=/mnt/nfs/scratch1/prafullpraka/696DS/snips/train
+DATA_DIR=/mnt/nfs/scratch1/wenlongzhao/Data_Efficiency/snips
 TASK_NAME=snips
 MODEL_TYPE=bert
 MODEL_PATH=/mnt/nfs/scratch1/xxx
@@ -13,7 +13,7 @@ SETTING=bert-base-cased
 CCEMD_PATH=/mnt/nfs/scratch1/xxx
 CODEBOOK_NUM=32
 CODEBOOK_SIZE=16
-OUTPUT_DIR=/mnt/nfs/scratch1/xxx
+OUTPUT_DIR=/mnt/nfs/scratch1/wenlongzhao/Result_Efficiency/semparse_bert_cc
 
 python ../run_semparse_cc.py \
   --model_type $MODEL_TYPE \
@@ -24,7 +24,6 @@ python ../run_semparse_cc.py \
   --task_name $TASK_NAME \
   --config_name $SETTING\
   --tokenizer_name $SETTING\
-  --do_lower_case \
   --do_train \
   --train_codebook \
   --not_train_transformer \
@@ -32,8 +31,8 @@ python ../run_semparse_cc.py \
   --eval_all_checkpoints \
   --data_dir $DATA_DIR \
   --max_seq_length 128 \
-  --per_gpu_train_batch_size 128 \
-  --per_gpu_eval_batch_size 128\
+  --per_gpu_train_batch_size 32 \
+  --per_gpu_eval_batch_size 32 \
   --gradient_accumulation_steps 1\
   --logging_steps 1000 \
   --learning_rate 5e-5 \
