@@ -599,6 +599,24 @@ def main():
         config=config,
         cache_dir=args.cache_dir if args.cache_dir else None,
     )
+    model2 = AutoModelForSequenceClassification.from_pretrained(
+        "bert-base-cased",
+        from_tf=bool(".ckpt" in args.model_name_or_path),
+        config=config,
+        cache_dir=args.cache_dir if args.cache_dir else None,
+    )
+    #model.bert.embeddings.word_embeddings.weight[0,:]=0
+    #print(model.bert.embeddings.word_embeddings.num_embeddings)
+    #print(model.bert.embeddings.word_embeddings(torch.LongTensor([0])))
+    cnt = 0
+    usedEmbedIndices = []
+    for i in range(config.vocab_size):
+        if not torch.equal(model.bert.embeddings.word_embeddings(torch.LongTensor([i])),
+                        model2.bert.embeddings.word_embeddings(torch.LongTensor([i]))):
+            cnt += 1
+            usedEmbedIndices.append(i)
+    np.save("usedEmbedIndices.npy", np.array(usedEmbedIndices))
+    dd
 
     if args.local_rank == 0:
         torch.distributed.barrier()  # Make sure only the first process in distributed training will download model & vocab

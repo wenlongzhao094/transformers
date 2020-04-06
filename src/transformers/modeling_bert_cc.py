@@ -25,8 +25,8 @@ class BertCcEmbeddings(nn.Module):
 
     def __init__(self, config):
         super().__init__()
-        self.word_codes = None # nn.Embedding(config.vocab_size, config.codebook_num)
-        self.codebook = None # nn.Parameter(torch.Tensor(config.codebook_num, config.hidden_size, config.codebook_size))
+        self.word_codes = nn.Embedding(config.vocab_size, config.codebook_num)
+        self.codebook = nn.Parameter(torch.Tensor(config.codebook_num, config.hidden_size, config.codebook_size))
         self.position_embeddings = nn.Embedding(config.max_position_embeddings, config.hidden_size)
         self.token_type_embeddings = nn.Embedding(config.type_vocab_size, config.hidden_size)
 

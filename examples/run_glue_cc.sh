@@ -13,6 +13,7 @@ SETTING=bert-base-cased
 CCEMD_PATH=/mnt/nfs/scratch1/ssaurabhkuma/2020/696DS/BERT/GLUE_benchmark/Ckpt_results_BERT_cased/src/neuralcompressor/models/M32_K16/SST-2
 CODEBOOK_NUM=32
 CODEBOOK_SIZE=16
+OUTPUT_DIR=/mnt/nfs/scratch1/wenlongzhao/Result_Efficiency/xxx
 
 python ../run_glue_cc.py \
   --model_type $MODEL_TYPE \
@@ -23,7 +24,6 @@ python ../run_glue_cc.py \
   --task_name $TASK_NAME \
   --config_name $SETTING\
   --tokenizer_name $SETTING\
-  --do_lower_case \
   --do_train \
   --train_codebook \
   --not_train_transformer \
@@ -35,7 +35,7 @@ python ../run_glue_cc.py \
   --per_gpu_eval_batch_size 8\
   --gradient_accumulation_steps 1\
   --learning_rate 2e-5 \
-  --num_train_epochs 3.0 \
-  --output_dir ./$TASK_NAME
+  --num_train_epochs 5.0 \
+  --output_dir $OUTPUT_DIR/$TASK_NAME
 
 

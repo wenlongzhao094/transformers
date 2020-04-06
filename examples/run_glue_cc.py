@@ -642,7 +642,10 @@ def main():
         word_codes = np.loadtxt(os.path.join(args.compositional_code_embedding_path, 'mymodel.codes'))
         word_codes = torch.Tensor(word_codes)
         codebook = np.load(os.path.join(args.compositional_code_embedding_path, 'mymodel.codebook.npy'))
-        codebook = codebook.reshape(config.codebook_num, config.codebook_size, config.hidden_size)
+        if args.model_type == "bert":
+            codebook = codebook.reshape(config.codebook_num, config.codebook_size, config.hidden_size)
+        if args.model_type == "albert":
+            codebook = codebook.reshape(config.codebook_num, config.codebook_size, config.embedding_size)
         codebook = torch.from_numpy(codebook.transpose((0, 2, 1)))
         model.set_input_embeddings(word_codes, codebook, args.train_codebook)
 

@@ -26,8 +26,7 @@ class AlbertCcEmbeddings(BertCcEmbeddings):
     def __init__(self, config):
         super().__init__(config)
 
-        # self.word_codes is nn.Embedding(config.vocab_size, config.codebook_num)
-        # self.codebook is nn.Parameter(torch.Tensor(config.codebook_num, config.embedding_size, config.codebook_size))
+        self.codebook = nn.Parameter(torch.Tensor(config.codebook_num, config.embedding_size, config.codebook_size))
         self.position_embeddings = nn.Embedding(config.max_position_embeddings, config.embedding_size)
         self.token_type_embeddings = nn.Embedding(config.type_vocab_size, config.embedding_size)
         self.LayerNorm = torch.nn.LayerNorm(config.embedding_size, eps=config.layer_norm_eps)
@@ -59,7 +58,7 @@ class AlbertCcModel(AlbertPreTrainedModel):
         return self.embeddings.word_codes, self.embeddings.codebook
 
     def set_input_embeddings(self, word_codes, codebook, train_codebook):
-        self.embeddings.word_codes = nn.Embedding.from_pretrained(word_codes, freeze=True)
+        self.embeddings.word_codes = nn.Embedding.from_pretrained(word_codes, freeze=True, padding_idx=0)
         self.embeddings.codebook = nn.Parameter(codebook, requires_grad=train_codebook)
 
     def _resize_token_embeddings(self, new_num_tokens):
@@ -200,7 +199,7 @@ class AlbertCcForSequenceClassification(AlbertPreTrainedModel):
         self.init_weights()
 
     def set_input_embeddings(self, word_codes, codebook, train_codebook):
-        self.albert.embeddings.word_codes = nn.Embedding.from_pretrained(word_codes, freeze=True)
+        self.albert.embeddings.word_codes = nn.Embedding.from_pretrained(word_codes, freeze=True, padding_idx=0)
         self.albert.embeddings.codebook = nn.Parameter(codebook, requires_grad=train_codebook)
 
     @add_start_docstrings_to_callable(ALBERT_INPUTS_DOCSTRING)
@@ -301,7 +300,7 @@ class AlbertCcForSequenceAndTokenClassification(AlbertPreTrainedModel):
         self.init_weights()
 
     def set_input_embeddings(self, word_codes, codebook, train_codebook):
-        self.albert.embeddings.word_codes = nn.Embedding.from_pretrained(word_codes, freeze=True)
+        self.albert.embeddings.word_codes = nn.Embedding.from_pretrained(word_codes, freeze=True, padding_idx=0)
         self.albert.embeddings.codebook = nn.Parameter(codebook, requires_grad=train_codebook)
 
     @add_start_docstrings_to_callable(ALBERT_INPUTS_DOCSTRING)
@@ -413,7 +412,7 @@ class AlbertCcForTokenClassification(AlbertPreTrainedModel):
         self.init_weights()
 
     def set_input_embeddings(self, word_codes, codebook, train_codebook):
-        self.albert.embeddings.word_codes = nn.Embedding.from_pretrained(word_codes, freeze=True)
+        self.albert.embeddings.word_codes = nn.Embedding.from_pretrained(word_codes, freeze=True, padding_idx=0)
         self.albert.embeddings.codebook = nn.Parameter(codebook, requires_grad=train_codebook)
 
     @add_start_docstrings_to_callable(ALBERT_INPUTS_DOCSTRING)
@@ -513,7 +512,7 @@ class AlbertCcForQuestionAnswering(AlbertPreTrainedModel):
         self.init_weights()
 
     def set_input_embeddings(self, word_codes, codebook, train_codebook):
-        self.albert.embeddings.word_codes = nn.Embedding.from_pretrained(word_codes, freeze=True)
+        self.albert.embeddings.word_codes = nn.Embedding.from_pretrained(word_codes, freeze=True, padding_idx=0)
         self.albert.embeddings.codebook = nn.Parameter(codebook, requires_grad=train_codebook)
 
     @add_start_docstrings_to_callable(ALBERT_INPUTS_DOCSTRING)
