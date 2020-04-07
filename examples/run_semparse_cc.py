@@ -399,6 +399,8 @@ def load_and_cache_examples(args, task, tokenizer, mode="train"):
         torch.distributed.barrier()  # Make sure only the first process in distributed training process the dataset, and the others will use the cache
 
     processor = processors[task]()
+    slot_label_list = processor.get_slot_labels()
+    intent_label_list = processor.get_intent_labels()
     # Load data features from cache or dataset file
     cached_features_file = os.path.join(
         args.data_dir,
@@ -416,8 +418,6 @@ def load_and_cache_examples(args, task, tokenizer, mode="train"):
         features = torch.load(cached_features_file)
     else:
         logger.info("Creating features from dataset file at %s", args.data_dir)
-        slot_label_list = processor.get_slot_labels()
-        intent_label_list = processor.get_intent_labels()
         if mode == "train":
             examples = processor.get_train_examples(os.path.join(args.data_dir, "train"))
         elif mode == "dev" or "development" or "valid" or "validation":
@@ -450,7 +450,7 @@ def load_and_cache_examples(args, task, tokenizer, mode="train"):
     all_slot_labels = torch.tensor([f.slot_labels for f in features], dtype=torch.long)
 
     dataset = TensorDataset(all_input_ids, all_attention_mask, all_token_type_ids, all_slot_labels, all_intent_labels)
-    return dataset, pad_token_label_id
+    return dataset, pad_token_label_id, slot_label_list
 
 
 def train(args, train_dataset, model, tokenizer):
@@ -644,99 +644,97 @@ def train(args, train_dataset, model, tokenizer):
     return global_step, tr_loss / global_step
 
 
-def evaluate(args, model, tokenizer, prefix="", mode="valid"):
-    eval_task_names = args.task_name
-    eval_outputs_dirs = args.output_dir
+def evaluate(args, model, tokenizer, prefix=""):
+    eval_task = args.task_name
+    eval_output_dir = args.output_dir
 
-    results = {}
-    for eval_task, eval_output_dir in zip(eval_task_names, eval_outputs_dirs):
-        eval_dataset, pad_token_label_id = load_and_cache_examples(args, eval_task, tokenizer, mode=mode)
+    eval_dataset, pad_token_label_id, slot_label_list = load_and_cache_examples(args, eval_task, tokenizer, mode=args.do_eval)
 
-        if not os.path.exists(eval_output_dir) and args.local_rank in [-1, 0]:
-            os.makedirs(eval_output_dir)
+    if not os.path.exists(eval_output_dir) and args.local_rank in [-1, 0]:
+        os.makedirs(eval_output_dir)
 
-        args.eval_batch_size = args.per_gpu_eval_batch_size * max(1, args.n_gpu)
-        # Note that DistributedSampler samples randomly
-        eval_sampler = SequentialSampler(eval_dataset)
-        eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler, batch_size=args.eval_batch_size)
+    args.eval_batch_size = args.per_gpu_eval_batch_size * max(1, args.n_gpu)
+    # Note that DistributedSampler samples randomly
+    eval_sampler = SequentialSampler(eval_dataset)
+    eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler, batch_size=args.eval_batch_size)
 
-        # multi-gpu eval
-        if args.n_gpu > 1 and not isinstance(model, torch.nn.DataParallel):
-            model = torch.nn.DataParallel(model)
+    # multi-gpu eval
+    if args.n_gpu > 1 and not isinstance(model, torch.nn.DataParallel):
+        model = torch.nn.DataParallel(model)
 
-        # Eval!
-        logger.info("***** Running evaluation {} *****".format(prefix))
-        logger.info("  Num examples = %d", len(eval_dataset))
-        logger.info("  Batch size = %d", args.eval_batch_size)
-        eval_loss = 0.0
-        eval_exact_match_cnt = 0.0
-        nb_eval_steps = 0
-        slot_gt = None
-        slot_preds = None
-        intent_gt = None
-        intent_preds = None
+    # Eval!
+    logger.info("***** Running evaluation {} *****".format(prefix))
+    logger.info("  Num examples = %d", len(eval_dataset))
+    logger.info("  Batch size = %d", args.eval_batch_size)
+    eval_loss = 0.0
+    eval_exact_match_cnt = 0.0
+    nb_eval_steps = 0
+    slot_gt = None
+    slot_preds = None
+    intent_gt = None
+    intent_preds = None
 
-        for batch in tqdm(eval_dataloader, desc="Evaluating"):
-            model.eval()
-            batch = tuple(t.to(args.device) for t in batch)
+    for batch in tqdm(eval_dataloader, desc="Evaluating"):
+        model.eval()
+        batch = tuple(t.to(args.device) for t in batch)
 
-            with torch.no_grad():
-                inputs = {"input_ids": batch[0], "attention_mask": batch[1],
-                          "token_labels": batch[3], "sequence_labels": batch[4]}
-                if args.model_type != "distilbert":
-                    inputs["token_type_ids"] = (
-                        batch[2] if args.model_type in ["bert", "xlnet", "albert"] else None
-                    )  # XLM, DistilBERT, RoBERTa, and XLM-RoBERTa don't use segment_ids
-                outputs = model(**inputs)
-                tmp_eval_loss, sequence_logits, token_logits = outputs[:3]
+        with torch.no_grad():
+            inputs = {"input_ids": batch[0], "attention_mask": batch[1],
+                      "token_labels": batch[3], "sequence_labels": batch[4]}
+            if args.model_type != "distilbert":
+                inputs["token_type_ids"] = (
+                    batch[2] if args.model_type in ["bert", "xlnet", "albert"] else None
+                )  # XLM, DistilBERT, RoBERTa, and XLM-RoBERTa don't use segment_ids
+            outputs = model(**inputs)
+            tmp_eval_loss, sequence_logits, token_logits = outputs[:3]
 
-                eval_loss += tmp_eval_loss.mean().item()
+            eval_loss += tmp_eval_loss.mean().item()
 
-            nb_eval_steps += 1
-            if slot_preds is None:
-                slot_preds = token_logits.detach().cpu().numpy()
-                slot_gt = inputs["token_labels"].detach().cpu().numpy()
-                intent_preds = sequence_logits.detach().cpu().numpy()
-                intent_gt = inputs["sequence_labels"].detach().cpu().numpy()
-            else:
-                slot_preds = np.append(slot_preds, logits.detach().cpu().numpy(), axis=0)
-                slot_gt = np.append(slot_gt, inputs["token_labels"].detach().cpu().numpy(), axis=0)
-                intent_preds = np.append(intent_preds, logits.detach().cpu().numpy(), axis=0)
-                intent_gt = np.append(intent_gt, inputs["sequence_labels"].detach().cpu().numpy(), axis=0)
+        nb_eval_steps += 1
+        if slot_preds is None:
+            slot_preds = token_logits.detach().cpu().numpy()
+            slot_gt = inputs["token_labels"].detach().cpu().numpy()
+            intent_preds = sequence_logits.detach().cpu().numpy()
+            intent_gt = inputs["sequence_labels"].detach().cpu().numpy()
+        else:
+            slot_preds = np.append(slot_preds, token_logits.detach().cpu().numpy(), axis=0)
+            slot_gt = np.append(slot_gt, inputs["token_labels"].detach().cpu().numpy(), axis=0)
+            intent_preds = np.append(intent_preds, sequence_logits.detach().cpu().numpy(), axis=0)
+            intent_gt = np.append(intent_gt, inputs["sequence_labels"].detach().cpu().numpy(), axis=0)
 
-        eval_loss = eval_loss / nb_eval_steps
-        intent_preds = np.argmax(intent_preds, axis=1)
-        slot_preds = np.argmax(slot_preds, axis=2)
+    eval_loss = eval_loss / nb_eval_steps
+    intent_preds = np.argmax(intent_preds, axis=1)
+    slot_preds = np.argmax(slot_preds, axis=2)
 
-        slot_gt_list = [[] for _ in range(slot_gt.shape[0])]
-        slot_preds_list = [[] for _ in range(slot_gt.shape[0])]
+    slot_label_map = {i: label for i, label in enumerate(slot_label_list)}
+    slot_gt_list = [[] for _ in range(slot_gt.shape[0])]
+    slot_preds_list = [[] for _ in range(slot_gt.shape[0])]
 
-        for i in range(slot_gt.shape[0]):
-            match = True
-            for j in range(slot_gt.shape[1]):
-                if slot_gt[i, j] != pad_token_label_id:
-                    slot_gt_list[i].append(slot_gt[i][j])
-                    slot_preds_list[i].append(slot_preds[i][j])
-                    if slot_gt[i][j] != slot_preds[i][j]:
-                        match = False
-            if match: eval_exact_match_cnt += 1
+    for i in range(slot_gt.shape[0]):
+        match = True
+        for j in range(slot_gt.shape[1]):
+            if slot_gt[i, j] != pad_token_label_id:
+                slot_gt_list[i].append(slot_label_map[slot_gt[i][j]])
+                slot_preds_list[i].append(slot_label_map[slot_preds[i][j]])
+                if slot_gt[i][j] != slot_preds[i][j]:
+                    match = False
+        if match: eval_exact_match_cnt += 1
 
-        results = {
-            "loss": eval_loss,
-            "accuracy_intents": np.mean(intent_gt == intent_preds),
-            "precision_slots": precision_score(slot_gt_list, slot_preds_list),
-            "recall_slots": recall_score(slot_gt_list, slot_preds_list),
-            "f1_slots": f1_score(slot_gt_list, slot_preds_list),
-            "exact_match": eval_exact_match_cnt/slot_gt.shape[0],
-        }
-        results.update(result)
+    results = {
+        "loss": eval_loss,
+        "accuracy_intents": np.mean(intent_gt == intent_preds),
+        "precision_slots": precision_score(slot_gt_list, slot_preds_list),
+        "recall_slots": recall_score(slot_gt_list, slot_preds_list),
+        "f1_slots": f1_score(slot_gt_list, slot_preds_list),
+        "exact_match": eval_exact_match_cnt/slot_gt.shape[0],
+    }
 
-        output_eval_file = os.path.join(eval_output_dir, prefix, "eval_results.txt")
-        with open(output_eval_file, "w") as writer:
-            logger.info("***** Eval results {} *****".format(prefix))
-            for key in sorted(result.keys()):
-                logger.info("  %s = %s", key, str(result[key]))
-                writer.write("%s = %s\n" % (key, str(result[key])))
+    output_eval_file = os.path.join(eval_output_dir, prefix, "eval_results.txt")
+    with open(output_eval_file, "w") as writer:
+        logger.info("***** Eval results {} *****".format(prefix))
+        for key in sorted(results.keys()):
+            logger.info("  %s = %s", key, str(results[key]))
+            writer.write("%s = %s\n" % (key, str(results[key])))
 
     return results
 
@@ -1014,7 +1012,7 @@ def main():
 
     # Training
     if args.do_train:
-        train_dataset, _ = load_and_cache_examples(args, args.task_name, tokenizer, mode="train")
+        train_dataset, _, _ = load_and_cache_examples(args, args.task_name, tokenizer, mode="train")
         global_step, tr_loss = train(args, train_dataset, model, tokenizer)
         logger.info(" global_step = %s, average loss = %s", global_step, tr_loss)
 
@@ -1058,7 +1056,7 @@ def main():
 
             model = AutoModelForSequenceAndTokenClassification.from_pretrained(checkpoint, config=config)
             model.to(args.device)
-            result = evaluate(args, model, tokenizer, prefix=prefix, mode=args.do_eval)
+            result = evaluate(args, model, tokenizer, prefix=prefix)
             result = dict((k + "_{}".format(global_step), v) for k, v in result.items())
             results.update(result)
 

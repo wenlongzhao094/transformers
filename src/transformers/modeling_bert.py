@@ -1493,7 +1493,7 @@ class BertForSequenceAndTokenClassification(BertPreTrainedModel):
                 loss_fct = MSELoss()
                 sequence_loss = loss_fct(sequence_logits.view(-1), sequence_labels.view(-1))
             else:
-                loss_fct = CrossEntropyLoss()
+                loss_fct = CrossEntropyLoss(reduction="sum")
                 sequence_loss = loss_fct(sequence_logits.view(-1, self.num_sequence_labels),
                                          sequence_labels.view(-1))
 

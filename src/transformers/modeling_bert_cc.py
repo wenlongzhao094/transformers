@@ -759,7 +759,7 @@ class BertCcForSequenceAndTokenClassification(BertPreTrainedModel):
 
         if sequence_labels is not None and token_labels is not None:
             # Token loss
-            loss_fct = CrossEntropyLoss()
+            loss_fct = CrossEntropyLoss(reduction="sum")
             # Only keep active parts of the loss
             if attention_mask is not None:
                 active_loss = attention_mask.view(-1) == 1
@@ -777,7 +777,7 @@ class BertCcForSequenceAndTokenClassification(BertPreTrainedModel):
                 loss_fct = MSELoss()
                 sequence_loss = loss_fct(sequence_logits.view(-1), sequence_labels.view(-1))
             else:
-                loss_fct = CrossEntropyLoss()
+                loss_fct = CrossEntropyLoss(reduction="sum")
                 sequence_loss = loss_fct(sequence_logits.view(-1, self.num_sequence_labels),
                                          sequence_labels.view(-1))
 
