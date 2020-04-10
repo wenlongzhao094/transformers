@@ -546,6 +546,8 @@ def train(args, train_dataset, model, tokenizer):
         epochs_trained, int(args.num_train_epochs), desc="Epoch", disable=args.local_rank not in [-1, 0],
     )
     set_seed(args)  # Added here for reproductibility
+    best_eval_result = 0.0
+    num_degrading_epoch = 0
     for _ in train_iterator:
         epoch_iterator = tqdm(train_dataloader, desc="Iteration", disable=args.local_rank not in [-1, 0])
         for step, batch in enumerate(epoch_iterator):
@@ -634,6 +636,43 @@ def train(args, train_dataset, model, tokenizer):
             if args.max_steps > 0 and global_step > args.max_steps:
                 epoch_iterator.close()
                 break
+
+        if args.local_rank in [-1, 0] and args.early_stopping > 0:
+            logs = {}
+            if args.local_rank == -1:  # Only evaluate when single GPU otherwise metrics may not average well
+                results = evaluate(args, model, tokenizer)
+                for key, value in results.items():
+                    eval_key = "eval_{}".format(key)
+                    logs[eval_key] = value
+
+                if results["exact_match"] > best_eval_result:
+                    best_eval_result = results["exact_match"]
+                    num_degrading_epoch = 0
+
+                    if not os.path.exists(args.output_dir):
+                        os.makedirs(args.output_dir)
+
+                    logger.info("Saving model checkpoint to %s", args.output_dir)
+                    # Save a trained model, configuration and tokenizer using `save_pretrained()`.
+                    # They can then be reloaded using `from_pretrained()`
+                    model_to_save = (
+                        model.module if hasattr(model, "module") else model
+                    )  # Take care of distributed/parallel training
+                    model_to_save.save_pretrained(args.output_dir)
+                    tokenizer.save_pretrained(args.output_dir)
+                    torch.save(args, os.path.join(args.output_dir, "training_args.bin"))
+                    torch.save(optimizer.state_dict(), os.path.join(args.output_dir, "optimizer.pt"))
+                    torch.save(scheduler.state_dict(), os.path.join(args.output_dir, "scheduler.pt"))
+                else:
+                    num_degrading_epoch += 1
+
+            for key, value in logs.items():
+                tb_writer.add_scalar(key, value, global_step)
+            print(json.dumps({**logs, **{"step": global_step}}))
+
+            if num_degrading_epoch == args.early_stopping:
+                break
+
         if args.max_steps > 0 and global_step > args.max_steps:
             train_iterator.close()
             break
@@ -712,6 +751,8 @@ def evaluate(args, model, tokenizer, prefix=""):
 
     for i in range(slot_gt.shape[0]):
         match = True
+        if intent_gt[i] != intent_preds[i]:
+            match = False
         for j in range(slot_gt.shape[1]):
             if slot_gt[i, j] != pad_token_label_id:
                 slot_gt_list[i].append(slot_label_map[slot_gt[i][j]])
@@ -778,6 +819,7 @@ def main():
         required=True,
         help="The output directory where the model predictions and checkpoints will be written.",
     )
+    parser.add_argument("--early_stopping", default=0, type=int, help="patience for early stopping")
 
     # Other parameters
     parser.add_argument(
@@ -1017,7 +1059,7 @@ def main():
         logger.info(" global_step = %s, average loss = %s", global_step, tr_loss)
 
     # Saving best-practices: if you use defaults names for the model, you can reload it using from_pretrained()
-    if args.do_train and (args.local_rank == -1 or torch.distributed.get_rank() == 0):
+    if args.do_train and (args.local_rank == -1 or torch.distributed.get_rank() == 0) and args.early_stopping == 0:
         # Create output directory if needed
         if not os.path.exists(args.output_dir) and args.local_rank in [-1, 0]:
             os.makedirs(args.output_dir)
@@ -1033,11 +1075,6 @@ def main():
 
         # Good practice: save your training arguments together with the trained model
         torch.save(args, os.path.join(args.output_dir, "training_args.bin"))
-
-        # Load a trained model and vocabulary that you have fine-tuned
-        # model = AutoModelForSequenceClassification.from_pretrained(args.output_dir)
-        # tokenizer = AutoTokenizer.from_pretrained(args.output_dir)
-        # model.to(args.device)
 
     # Evaluation
     results = {}

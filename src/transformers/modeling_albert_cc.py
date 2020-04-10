@@ -363,7 +363,7 @@ class AlbertCcForSequenceAndTokenClassification(AlbertPreTrainedModel):
         token_logits = self.token_classifier(token_output)
         sequence_logits = self.sequence_classifier(pooled_output)
 
-        outputs = (sequence_logits,) + (token_logits) + outputs[2:]  # add hidden states and attention if they are here
+        outputs = (sequence_logits,) + (token_logits,) + outputs[2:]  # add hidden states and attention if they are here
 
         if sequence_labels is not None and token_labels is not None:
             # Token loss
