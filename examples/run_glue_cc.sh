@@ -25,8 +25,8 @@ python ../run_glue_cc.py \
   --config_name $SETTING\
   --tokenizer_name $SETTING\
   --do_train \
-  --train_codebook \
-  --not_train_transformer \
+#  --train_codebook \
+#  --not_train_transformer \
   --save_steps 0 \
   --early_stopping 3 \
 #  --do_eval \

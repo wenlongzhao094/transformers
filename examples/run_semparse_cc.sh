@@ -26,8 +26,8 @@ python ../run_semparse_cc.py \
   --config_name $SETTING\
   --tokenizer_name $SETTING\
   --do_train \
-  --train_codebook \
-  --not_train_transformer \
+#  --train_codebook \
+#  --not_train_transformer \
   --save_steps 0 \
   --early_stopping 3 \
 #  --do_eval $EVAL_MODE\
@@ -42,7 +42,3 @@ python ../run_semparse_cc.py \
   --weight_decay 0.01 \
   --num_train_epochs 40.0 \
   --output_dir $OUTPUT_DIR/$TASK_NAME
-
-
-  /mnt/nfs/scratch1/prafullpraka/696DS/BERT/GLUE_benchmark/Ckpt_results_BERT_cased/SST-2/
-  /mnt/nfs/scratch1/ssaurabhkuma/2020/696DS/BERT/GLUE_benchmark/Ckpt_results_BERT_cased/src/neuralcompressor/models/M32_K16/SST-2
